@@ -11,7 +11,7 @@ run:
 		-c "link.exe nexthop.obj; > LINKLOG.TXT" \
 		-c "exit" > /dev/null
 
-	@./masm_errors && \
+	@./MASM_ERRORS && \
 		dosbox \
 			-conf DOSBOX.CONF\
 			-c 'mount c "."' \

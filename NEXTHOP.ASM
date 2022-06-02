@@ -47,11 +47,12 @@ endm
 draw_pixel macro pix_x, pix_y, pix_color, video_page
     push_reg
 
+    mov ax, pix_color
     mov ah, 0Ch
-    mov al, pix_color
     mov cx, pix_x
     mov dx, pix_y
-    mov bh, video_page
+    mov bx, video_page
+    mov bh, bl
     int 010h
 
     pop_reg

@@ -1,7 +1,7 @@
 # nexthop
 ## Work in progress
 
-Small game made writen in assembly for MASM assembler
+Small game writen in assembly for MASM assembler
 
 Process of compiling and running inside dosbox automated
 

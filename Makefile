@@ -1,5 +1,6 @@
 run:
 	@dosbox \
+		-conf DOSBOX.CONF\
 		-c 'mount c "."' \
 	 	-c "c:" \
 		-c "del nexthop.exe;" \
@@ -8,19 +9,15 @@ run:
 		-c "cls" \
 		-c "type MASMLOG.TXT" \
 		-c "link.exe nexthop.obj; > LINKLOG.TXT" \
-		-c "exit"
-
-	cat MASMLOG.TXT
-	echo
+		-c "exit" > /dev/null
 
 	@./masm_errors && \
 		dosbox \
+			-conf DOSBOX.CONF\
 			-c 'mount c "."' \
 			-c "c:" \
 			-c "nexthop.exe" \
 			-c "del nexthop.obj" \
 			-c "exit"\
-			||\
-		echo;echo "There are errors or warnings:";echo;
-	
+			|| echo "There are errors or warnings";cat MASMLOG.TXT
 	

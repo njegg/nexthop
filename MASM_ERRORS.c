@@ -3,6 +3,10 @@
 #include <errno.h>
 #include <string.h>
 
+/*
+ * Read the log and return the number of severe errors
+*/
+
 int main()
 {
     FILE *fr = fopen("MASMLOG.TXT", "r");
@@ -29,4 +33,3 @@ int main()
 
     return errors;
 }
-

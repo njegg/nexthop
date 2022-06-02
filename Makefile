@@ -10,6 +10,9 @@ run:
 		-c "link.exe nexthop.obj; > LINKLOG.TXT" \
 		-c "exit"
 
+	cat MASMLOG.TXT
+	echo
+
 	@./masm_errors && \
 		dosbox \
 			-c 'mount c "."' \
@@ -18,7 +21,6 @@ run:
 			-c "del nexthop.obj" \
 			-c "exit"\
 			||\
-		echo;echo "There are errors or warnings:";echo;\
-		cat MASMLOG.TXT;
+		echo;echo "There are errors or warnings:";echo;
 	
 	

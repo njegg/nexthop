@@ -3,8 +3,6 @@
 
 .code
 
-; jmp start
-; 
 ; key_press macro
 ;     push ax
 ;     mov ah, 01h
@@ -30,7 +28,6 @@ start:
     mov dx, 010h
     mov bx, 00h
     int 010h
-
 
     mov ah, 1
     int 21h

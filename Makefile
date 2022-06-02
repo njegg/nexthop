@@ -19,6 +19,6 @@ run:
 			-c "exit"\
 			||\
 		echo;echo "There are errors or warnings:";echo;\
-		cat MASMLOG.TXT
+		cat MASMLOG.TXT;
 	
 	

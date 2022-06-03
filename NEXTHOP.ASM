@@ -206,6 +206,23 @@ draw_player macro color
     pop ax
 endm
 
+move_player macro
+    cmp W_pressed, 1
+    jne W_checked
+
+    dec player_draw_y
+    dec player_pos_y
+
+    W_checked:
+
+    cmp A_pressed, 1
+    jne A_checked
+
+    dec player_draw_x
+    dec player_pos_y
+
+endm
+
 check_key macro, key, status
     local end_check
     local released
@@ -232,58 +249,24 @@ check_key macro, key, status
     end_check:
 endm
 
-handle_input proc
+handle_input macro
+    local dont_exit
+
     check_key KEY_ESC ESC_pressed
-
     cmp ESC_pressed, 1
-    jne check_keys
+    jne dont_exit
     exit
-
-    check_keys:
+    dont_exit:
 
     check_key KEY_W W_pressed
-    cmp W_pressed, 1
-    jne W_handled
-    
-    dec player_draw_y
-    dec player_pos_y
-
-    W_handled:
-
     check_key KEY_A A_pressed
-    cmp A_pressed, 1
-    jne A_handled
-    
-    dec player_draw_x
-    dec player_pos_x
-
-    A_handled:
-
     check_key KEY_D D_pressed
-    cmp D_pressed, 1
-    jne D_handled
-    
-    inc player_draw_x
-    inc player_pos_x
-
-    D_handled:
-
     check_key KEY_S S_pressed
-    cmp S_pressed, 1
-    jne S_handled
-    
-    inc player_draw_y
-    inc player_pos_y
-    
-    S_handled:
-
-    ret
-handle_input endp
+endm
 
 start:
     mov ax, @data
 	mov ds, ax      ; init data segment
-
 
     mov ax, 0Dh     ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
     int 010h
@@ -314,8 +297,8 @@ start:
     game_loop:
         sleep 04100h
 
-        call handle_input
-
+        handle_input
+        move_player
         draw_player
 
         jmp game_loop

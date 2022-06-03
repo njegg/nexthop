@@ -9,7 +9,7 @@
 
 int main()
 {
-    FILE *fr = fopen("MASMLOG.TXT", "r");
+    FILE *fr = fopen("UTIL/MASMLOG.TXT", "r");
     if (!fr) {
         printf("Unable to read MASMLOG.TXT: %s\n", strerror(errno));
         printf("Last compiled version of program will run\n");

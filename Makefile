@@ -1,23 +1,23 @@
 run:
 	@dosbox \
-		-conf DOSBOX.CONF\
-		-c 'mount c "."' \
-	 	-c "c:" \
-		-c "del nexthop.exe;" \
-		-c "cls" \
-		-c "masm.exe /z nexthop; > MASMLOG.TXT" \
-		-c "cls" \
-		-c "type MASMLOG.TXT" \
-		-c "link.exe nexthop.obj; > LINKLOG.TXT" \
-		-c "exit" > /dev/null
+		-conf UTIL/DOSBOX.CONF\
+		-c 'MOUNT C "."' \
+	 	-c "C:" \
+		-c "DEL NEXTHOP.EXE;" \
+		-c "CLS" \
+		-c "UTIL\MASM.EXE /z NEXTHOP; > UTIL\MASMLOG.TXT" \
+		-c "CLS" \
+		-c "TYPE UTIL\MASMLOG.TXT" \
+		-c "UTIL\LINK.EXE NEXTHOP.OBJ; > UTIL\LINKLOG.TXT" \
+		-c "EXIT" > /dev/null
 
-	@./MASM_ERRORS && \
+	@./UTIL/MASM_ERRORS && \
 		dosbox \
-			-conf DOSBOX.CONF\
-			-c 'mount c "."' \
-			-c "c:" \
-			-c "nexthop.exe" \
-			-c "del nexthop.obj" \
-			-c "exit"\
-			|| echo "There are errors or warnings";cat MASMLOG.TXT
+			-conf UTIL/DOSBOX.CONF\
+			-c 'MOUNT C "."' \
+			-c "C:" \
+			-c "NEXTHOP.EXE" \
+			-c "DEL NEXTHOP.OBJ" \
+			-c "EXIT"\
+			|| echo "There are errors or warnings";cat UTIL/MASMLOG.TXT
 	

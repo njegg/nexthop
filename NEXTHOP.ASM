@@ -25,7 +25,7 @@
     player_w dw 05h
     player_h dw 0Ah
 
-    player_velocity dw 2
+    player_velocity dw 1
 
     player_color db 0Fh
 
@@ -175,7 +175,7 @@ draw_rect proc
 
     mov     ax, [bp+di +6]
     mov     dx, [bp+di +10]
-    mov     rec_color, dx
+    mov     rec_color, dl
     draw_y:
         push    cx
         mov     cx, [bp+di +2]          ; loop through width
@@ -223,15 +223,18 @@ draw_level proc
     ret
 draw_level endp
 
-draw_player macro color
+draw_player macro draw_player_color, draw_player_x, draw_player_y
     push    ax
     push    bx
 
-    mov     ax, 0Fh
+    mov     ax, draw_player_color
     push    ax
 
-    push    player_draw_x
-    push    player_draw_y
+    mov     ax, draw_player_x
+    push    ax
+
+    mov     ax, draw_player_y
+    push    ax
 
     mov     ax, player_draw_x
     add     ax, player_w
@@ -247,6 +250,9 @@ endm
 
 handle_input macro
     local   dont_exit
+    
+    ; delete player
+    draw_player     0Ch player_draw_x player_draw_y
 
     mov     ax, player_velocity
 
@@ -258,12 +264,18 @@ handle_input macro
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
 
-    sub     player_pos_y, ax
+    cmp     player_pos_y, 014h
+    jle     W_checked               ; level border
+
+    sub     player_pos_y, ax        ; decrement positions by velocity
     sub     player_draw_y, ax
     W_checked:
 
     cmp     [key_buffer + 01Eh], 1  ; check A
     jne     A_checked
+
+    cmp     player_pos_x, 050h      ; level border
+    jle     A_checked
 
     sub     player_pos_x, ax
     sub     player_draw_x, ax
@@ -272,6 +284,11 @@ handle_input macro
     cmp     [key_buffer + 01Fh], 1  ; check S
     jne     S_checked
 
+    mov     bx, player_draw_y
+    add     bx, player_h
+    cmp     bx, 0B4h
+    jge     S_checked
+
     add     player_pos_y, ax
     add     player_draw_y, ax
     S_checked:
@@ -279,9 +296,16 @@ handle_input macro
     cmp     [key_buffer + 020h], 1  ; check D
     jne     D_checked
 
+    mov     bx, player_pos_x
+    add     bx, player_w
+    cmp     bx, 0F0h
+    jge     D_checked
+
     add     player_pos_x, ax
     add     player_draw_x, ax
     D_checked:
+
+    draw_player     0Fh player_draw_x player_draw_y
 endm
 
 start:
@@ -316,10 +340,9 @@ start:
     int     16h
 
     game_loop:
-    sleep   0411Bh 
+    sleep   0211Bh 
 
     handle_input
-    draw_player
 
     jmp     game_loop
 

@@ -7,21 +7,9 @@
 
     loading db 'LOADING...$'
 
-    key_buffer db 256 dup(0)
+    key_buffer db 128 dup(0)
     isr1_address0 dw 0
     isr1_address1 dw 0
-
-    W_pressed db 0
-    S_pressed db 0
-    A_pressed db 0
-    D_pressed db 0
-    ESC_pressed db 0
-
-    KEY_W db 011h
-    KEY_S db 01Fh
-    KEY_A db 01Eh
-    KEY_D db 020h
-    KEY_ESC db 01h
 
     player_pos_x dw 0A0h
     player_pos_y dw 064h
@@ -34,6 +22,8 @@
 
     player_w dw 05h
     player_h dw 0Ah
+
+    player_velocity dw, 2
 
     player_color db 0Fh
 
@@ -65,9 +55,9 @@ exit proc
 exit endp
 
 interupt_request_1_routine:
-    push ax
-    push bx
-    push cx
+    push    ax
+    push    bx
+    push    cx
 
     ; read keyboard scan code
     in      al, 60h
@@ -93,9 +83,9 @@ interupt_request_1_routine:
     mov     al, 20h
     out     20h, al
 
-    pop cx
-    pop bx
-    pop ax
+    pop     cx
+    pop     bx
+    pop     ax
     iret
 
 change_isr proc
@@ -132,40 +122,24 @@ resotre_isr proc
     ret
 resotre_isr endp
 
-push_reg macro
-    push bp
-    push ax
-    push bx
-    push cx
-    push dx
-endm
-
-pop_reg macro
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    pop bp
-endm
-
 draw_pixel macro pix_x, pix_y, pix_color, video_page
-    push ax
-    push bx
-    push cx
-    push dx
+    push    ax
+    push    bx
+    push    cx
+    push    dx
 
-    mov cx, pix_x
-    mov dx, pix_y
-    mov al, pix_color
-    mov ah, 0Ch
-    mov bx, video_page
-    mov bh, bl
-    int 010h
+    mov     cx, pix_x
+    mov     dx, pix_y
+    mov     al, pix_color
+    mov     ah, 0Ch
+    mov     bx, video_page
+    mov     bh, bl
+    int     010h
 
-    pop dx
-    pop cx
-    pop bx
-    pop ax
+    pop     dx
+    pop     cx
+    pop     bx
+    pop     ax
 endm
 
 ;--------------------------------------------------------------------
@@ -179,39 +153,49 @@ draw_rect proc
 ;       push y2         [+2]
 ;       call draw_rect
 ;--------------------------------------------------------------------
-    push_reg    
+    push    ax
+    push    bx
+    push    cx
+    push    dx
+    push    di
+    push    bp
 
-    mov bp, sp
-    mov di, 0Ah
+    mov     bp, sp
+    mov     di, 0Ch
 
-    mov bx, [bp+di +2]
-    sub bx, [bp+di +6]
-    mov cx, bx                      ; rect height
+    mov     bx, [bp+di +2]
+    sub     bx, [bp+di +6]
+    mov     cx, bx                      ; rect height
 
-    mov bx, [bp+di +4]
-    sub bx, [bp+di +8]              ; rect width
-    mov [bp+di +2], bx
+    mov     bx, [bp+di +4]
+    sub     bx, [bp+di +8]              ; rect width
+    mov     [bp+di +2], bx
 
-    mov ax, [bp+di +6]
-    mov dx, [bp+di +10]
-    mov rec_color, dx
+    mov     ax, [bp+di +6]
+    mov     dx, [bp+di +10]
+    mov     rec_color, dx
     draw_y:
-        push cx
-        mov cx, [bp+di +2]          ; loop through width
-        mov bx, [bp+di +8]          ; x1
+        push    cx
+        mov     cx, [bp+di +2]          ; loop through width
+        mov     bx, [bp+di +8]          ; x1
 
         draw_x:
-            mov dx, 0Ch            ; color
+            mov     dx, 0Ch            ; color
             draw_pixel bx ax rec_color 0
-            inc bx
-            loop draw_x
+            inc     bx
+            loop    draw_x
         
-        inc ax
-        pop cx
-        loop draw_y
+        inc     ax
+        pop     cx
+        loop    draw_y
 
-    pop_reg
-    ret 0Ah
+    pop     bp
+    pop     di
+    pop     dx
+    pop     cx
+    pop     bx
+    pop     ax
+    ret     0Ah
 draw_rect endp
 
 ;--------------------------------------------------------------------
@@ -220,172 +204,123 @@ draw_level proc
 ;   draws a 160x160 square
 ;   starts at (80, 40)   
 ;--------------------------------------------------------------------
-    mov al, ground_color
-    xor ah, ah
-    push ax
+    mov     al, ground_color
+    xor     ah, ah
+    push    ax
 
-    mov ax, 050h
-    push ax
-    mov ax, 014h
-    push ax
-    mov ax, 0F0h
-    push ax
-    mov ax, 0B4h
-    push ax
-    call draw_rect
+    mov     ax, 050h
+    push    ax
+    mov     ax, 014h
+    push    ax
+    mov     ax, 0F0h
+    push    ax
+    mov     ax, 0B4h
+    push    ax
+    call    draw_rect
 
     ret
 draw_level endp
 
-if_pressed macro ascii
-    LOCAL pressed
-    LOCAL not_pressed
-    LOCAL end_if_pressed
-    
-    mov ah, 01h         ; read keyboard buffer
-    int 16h            
-    
-    cmp al, ascii      
-    jne not_pressed
-    
-    pressed:
-    mov ax, 1
-    jmp end_if_pressed
-    
-    not_pressed:
-    mov ax, 0
-    sti
-    end_if_pressed:
-endm
-
 draw_player macro color
-    push ax
-    push bx
+    push    ax
+    push    bx
 
-    mov ax, 0Fh
-    push ax
+    mov     ax, 0Fh
+    push    ax
 
-    push player_draw_x
-    push player_draw_y
+    push    player_draw_x
+    push    player_draw_y
 
-    mov ax, player_draw_x
-    add ax, player_w
-    push ax
+    mov     ax, player_draw_x
+    add     ax, player_w
+    push    ax
 
-    mov ax, player_draw_y
-    add ax, player_h
-    push ax
+    mov     ax, player_draw_y
+    add     ax, player_h
+    push    ax
 
-    call draw_rect
-    pop ax
-endm
-
-move_player macro
-    ; cmp W_pressed, 1
-    ; jne W_checked
-
-    ; dec player_draw_y
-    ; dec player_pos_y
-
-    ; W_checked:
-
-    ; cmp A_pressed, 1
-    ; jne A_checked
-
-    ; dec player_draw_x
-    ; dec player_pos_y
-
-endm
-
-check_key macro, key, status
-    local end_check
-    local released
-
-    in al, 060h         ; get stuff from port 60h
-    mov ah, al          ; save for the pressed/released flag
-    and al, 07Fh        ; remove pressed/released flag
-    
-    cmp al, key         
-    jne end_check
-
-    and ah, 080h        ; leaves last bit - pressed/released flag
-    cmp ah, 0
-    jne released
-
-    ; pressed:
-    mov status, 1 
-    jmp end_check
-
-    released:
-    mov status, 0
-    jmp end_check
-
-    end_check:
+    call    draw_rect
+    pop     ax
 endm
 
 handle_input macro
-    local dont_exit
+    local   dont_exit
 
-    ; check_key KEY_ESC ESC_pressed
-    ; cmp ESC_pressed, 1
-    ; jne dont_exit
-    ; call exit
-    ; dont_exit:
+    mov     ax, player_velocity
 
-    ; check_key KEY_W W_pressed
-    ; check_key KEY_A A_pressed
-    ; check_key KEY_D D_pressed
-    ; check_key KEY_S S_pressed
-
-    cmp key_buffer[1], 1
-    jne ESC_checked
-    call exit
-    
+    cmp     [key_buffer + 01h], 1
+    jne     ESC_checked
+    call    exit
     ESC_checked:
 
+    cmp     [key_buffer + 011h], 1  ; check W
+    jne     W_checked
+
+    sub     player_pos_y, ax
+    sub     player_draw_y, ax
+    W_checked:
+
+    cmp     [key_buffer + 01Eh], 1  ; check A
+    jne     A_checked
+
+    dec     player_pos_x
+    dec     player_draw_x
+    A_checked:
+
+    cmp     [key_buffer + 01Fh], 1  ; check S
+    jne     S_checked
+
+    inc     player_pos_y
+    inc     player_draw_y
+    S_checked:
+
+    cmp     [key_buffer + 020h], 1  ; check D
+    jne     D_checked
+
+    inc     player_pos_x
+    inc     player_draw_x
+    D_checked:
 endm
 
 start:
-    mov ax, @data
-	mov ds, ax      ; init data segment
+    mov     ax, @data
+	mov     ds, ax      ; init data segment
 
-    call change_isr
+    call    change_isr
 
-    mov ax, 0Dh     ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
-    int 010h
+    mov     ax, 0Dh     ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
+    int     010h
 
-    mov ax, 00501h  ; move to page 1 while stuff is drawing on the screen 
-    int 10h
+    mov     ax, 00501h  ; move to page 1 while stuff is drawing on the screen 
+    int     10h
 
-    mov ah, 02h     ; set cursor coords
-    mov bh, 01h     ; page
-    mov dh, 010h    ; y
-    mov dl, 0Dh     ; x
-    int 10h
+    mov     ah, 02h     ; set cursor coords
+    mov     bh, 01h     ; page
+    mov     dh, 010h    ; y
+    mov     dl, 0Dh     ; x
+    int     10h
 
-    lea dx, loading     ; write loading... while waiting for drawing to finish
-    mov ah, 09h
-    int 21h
+    lea     dx, loading     ; write loading... while waiting for drawing to finish
+    mov     ah, 09h
+    int     21h
 
-    ;call rainbow            ; draw to page 0
-    call draw_level
+    call    draw_level
 
-    mov ax, 00500h          ; finished drawing, move back to page 0
-    int 10h
+    mov     ax, 00500h          ; finished drawing, move back from loading to page 0
+    int     10h
 
-    mov ax, 0304h
-    xor bx, bx
-    int 16h
+    mov     ax, 0304h
+    xor     bx, bx
+    int     16h
 
     game_loop:
-        sleep 04100h
+    sleep   0411Bh 
 
-        handle_input
-        move_player
-        draw_player
+    handle_input
+    draw_player
 
-        jmp game_loop
+    jmp     game_loop
 
-    call exit
+    call    exit
 
 end start

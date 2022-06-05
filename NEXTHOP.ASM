@@ -13,6 +13,8 @@
 
     player_pos_x dw 0A0h
     player_pos_y dw 064h
+    player_prev_pos_x dw 0A0h
+    player_prev_pos_y dw 064h
 
     player_draw_x dw 0A0h
     player_draw_y dw 064h
@@ -23,7 +25,7 @@
     player_w dw 05h
     player_h dw 0Ah
 
-    player_velocity dw, 2
+    player_velocity dw 2
 
     player_color db 0Fh
 
@@ -263,22 +265,22 @@ handle_input macro
     cmp     [key_buffer + 01Eh], 1  ; check A
     jne     A_checked
 
-    dec     player_pos_x
-    dec     player_draw_x
+    sub     player_pos_x, ax
+    sub     player_draw_x, ax
     A_checked:
 
     cmp     [key_buffer + 01Fh], 1  ; check S
     jne     S_checked
 
-    inc     player_pos_y
-    inc     player_draw_y
+    add     player_pos_y, ax
+    add     player_draw_y, ax
     S_checked:
 
     cmp     [key_buffer + 020h], 1  ; check D
     jne     D_checked
 
-    inc     player_pos_x
-    inc     player_draw_x
+    add     player_pos_x, ax
+    add     player_draw_x, ax
     D_checked:
 endm
 

@@ -7,6 +7,9 @@
 
     loading db 'LOADING...$'
 
+    key_buffer db 256 dup(0)
+    isr1_address0 dw 0
+    isr1_address1 dw 0
 
     W_pressed db 0
     S_pressed db 0
@@ -52,11 +55,82 @@ sleep macro amount
     int     15h 
 endm
 
-exit macro
+exit proc
+    call resotre_isr
+
     mov ah, 4ch
     mov al,00h
     int 21h
-endm
+    ret
+exit endp
+
+interupt_request_1_routine:
+    push ax
+    push bx
+    push cx
+
+    ; read keyboard scan code
+    in      al, 60h
+
+    ; update keyboard state
+    xor     bh, bh
+    mov     bl, al
+    and     bl, 7Fh             ; bx = scan code
+    mov     cl, 7
+    shr     al, cl              ; al = 0/1 not_pressed / pressed
+    xor     al, 1               ; al = 0/1 pressed    /  not pressed
+    mov     ds:[bx+key_buffer], al
+
+    ; send EOI to XT keyboard
+    in      al, 61h
+    mov     ah, al
+    or      al, 80h
+    out     61h, al
+    mov     al, ah
+    out     61h, al
+
+    ; send EOI to master PIC
+    mov     al, 20h
+    out     20h, al
+
+    pop cx
+    pop bx
+    pop ax
+    iret
+
+change_isr proc
+    push    ax
+
+    xor     ax, ax
+    mov     es, ax
+
+    cli                         ; update ISR address w/ ints disabled
+    mov     ax, es:[9*4+2]      ; preserve ISR address
+    mov     isr1_address1, ax
+
+    mov     ax, es:[9*4]
+    mov     isr1_address0, ax
+
+    lea     si, interupt_request_1_routine
+
+    mov     es:[9*4], si
+    mov     es:[9*4+2], cs
+    sti
+
+    pop ax
+    ret
+change_isr endp
+
+resotre_isr proc
+    cli 
+    mov     ax, isr1_address0
+    mov     es:[9*4], ax 
+
+    mov     ax, isr1_address1
+    mov     es:[9*4+2], ax
+    sti
+    ret
+resotre_isr endp
 
 push_reg macro
     push bp
@@ -207,19 +281,19 @@ draw_player macro color
 endm
 
 move_player macro
-    cmp W_pressed, 1
-    jne W_checked
+    ; cmp W_pressed, 1
+    ; jne W_checked
 
-    dec player_draw_y
-    dec player_pos_y
+    ; dec player_draw_y
+    ; dec player_pos_y
 
-    W_checked:
+    ; W_checked:
 
-    cmp A_pressed, 1
-    jne A_checked
+    ; cmp A_pressed, 1
+    ; jne A_checked
 
-    dec player_draw_x
-    dec player_pos_y
+    ; dec player_draw_x
+    ; dec player_pos_y
 
 endm
 
@@ -252,21 +326,30 @@ endm
 handle_input macro
     local dont_exit
 
-    check_key KEY_ESC ESC_pressed
-    cmp ESC_pressed, 1
-    jne dont_exit
-    exit
-    dont_exit:
+    ; check_key KEY_ESC ESC_pressed
+    ; cmp ESC_pressed, 1
+    ; jne dont_exit
+    ; call exit
+    ; dont_exit:
 
-    check_key KEY_W W_pressed
-    check_key KEY_A A_pressed
-    check_key KEY_D D_pressed
-    check_key KEY_S S_pressed
+    ; check_key KEY_W W_pressed
+    ; check_key KEY_A A_pressed
+    ; check_key KEY_D D_pressed
+    ; check_key KEY_S S_pressed
+
+    cmp key_buffer[1], 1
+    jne ESC_checked
+    call exit
+    
+    ESC_checked:
+
 endm
 
 start:
     mov ax, @data
 	mov ds, ax      ; init data segment
+
+    call change_isr
 
     mov ax, 0Dh     ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
     int 010h
@@ -303,7 +386,6 @@ start:
 
         jmp game_loop
 
-    quit_game:
-        exit
+    call exit
 
 end start

@@ -5,7 +5,7 @@
     SCREEN_W dw 0140h
     SCREEN_H dw 0C8h
 
-    loading db 'LOADING...$'
+    loading db "LOADING...$"
 
     key_buffer db 128 dup(0)
     isr1_address0 dw 0
@@ -223,28 +223,47 @@ draw_level proc
     ret
 draw_level endp
 
+;--------------------------------------------------------------------
 draw_player macro draw_player_color, draw_player_x, draw_player_y
+;
+;   drawing a rect in a way that a player actual position
+;   is at the middle of the base of a rectanle, so the
+;   top-left and bottom-right coordinates for drawing a rect are:
+;       (pdx = player_draw_x, pw = player_w)
+;       x1 = pdx - pw/2
+;       y1 = dpy - ph
+;       x2 = pdx + pw/2
+;       y2 = pdy
+;--------------------------------------------------------------------
     push    ax
     push    bx
+    push    cx
 
-    mov     ax, draw_player_color
+    mov     ax, draw_player_color   ; color parameter for draw rect proc
     push    ax
 
-    mov     ax, draw_player_x
-    push    ax
+    mov     ax, draw_player_x       ; pdx
+    mov     cx, player_w            ; pw
+    shr     cx, 1                   ; pw/2
+    sub     ax, cx                  ; x1 = pdx - pw/2
+    push    ax                      ; draw rect proc parameter
 
-    mov     ax, draw_player_y
+    mov     ax, draw_player_y       ; pdy
+    mov     bx, player_h            ; ph
+    sub     ax, bx                  ; pdy - ph
     push    ax
 
     mov     ax, player_draw_x
-    add     ax, player_w
+    add     ax, cx                  ; pdx + pw/2
     push    ax
 
     mov     ax, player_draw_y
-    add     ax, player_h
     push    ax
 
     call    draw_rect
+
+    pop     cx
+    pop     bx
     pop     ax
 endm
 
@@ -284,9 +303,7 @@ handle_input macro
     cmp     [key_buffer + 01Fh], 1  ; check S
     jne     S_checked
 
-    mov     bx, player_draw_y
-    add     bx, player_h
-    cmp     bx, 0B4h
+    cmp     player_pos_y, 0B4h
     jge     S_checked
 
     add     player_pos_y, ax
@@ -296,9 +313,7 @@ handle_input macro
     cmp     [key_buffer + 020h], 1  ; check D
     jne     D_checked
 
-    mov     bx, player_pos_x
-    add     bx, player_w
-    cmp     bx, 0F0h
+    cmp     player_pos_x, 0F0h
     jge     D_checked
 
     add     player_pos_x, ax
@@ -340,9 +355,9 @@ start:
     int     16h
 
     game_loop:
-    sleep   0211Bh 
+        sleep   0211Bh 
 
-    handle_input
+        handle_input
 
     jmp     game_loop
 

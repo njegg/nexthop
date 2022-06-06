@@ -17,7 +17,8 @@ run:
 			-c 'MOUNT C "."' \
 			-c "C:" \
 			-c "NEXTHOP.EXE" \
-			-c "DEL NEXTHOP.OBJ" \
 			-c "EXIT"\
 			|| echo "There are errors or warnings";cat UTIL/MASMLOG.TXT
+
+	@rm NEXTHOP.OBJ
 	

@@ -34,7 +34,7 @@ int main()
     }
 
     if (errors == -1) {
-        printf("Unable to check for errors from MASMLOG.TXT");
+        printf("Unable to check for errors from MASMLOG.TXT\n");
         fclose(fr);
         return 1;
     }

@@ -4,9 +4,6 @@
 #include <string.h>
 #include <wchar.h>
 
-
-void create_line_links(FILE*);
-
 /*
  *  Read the log and return the number of severe errors
  *  Used in makefile to not execute the program if there are

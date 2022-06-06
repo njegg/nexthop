@@ -169,9 +169,15 @@ draw_rect proc
     sub     bx, [bp+di +6]
     mov     cx, bx                      ; rect height
 
+    cmp     cx, 0
+    jle     end_draw_rect
+
     mov     bx, [bp+di +4]
     sub     bx, [bp+di +8]              ; rect width
     mov     [bp+di +2], bx
+
+    cmp     bx, 0
+    jle     end_draw_rect
 
     mov     ax, [bp+di +6]
     mov     dx, [bp+di +10]
@@ -182,7 +188,6 @@ draw_rect proc
         mov     bx, [bp+di +8]          ; x1
 
         draw_x:
-            mov     dx, 0Ch            ; color
             draw_pixel bx ax rec_color 0
             inc     bx
             loop    draw_x
@@ -191,6 +196,7 @@ draw_rect proc
         pop     cx
         loop    draw_y
 
+    end_draw_rect:
     pop     bp
     pop     di
     pop     dx
@@ -267,102 +273,11 @@ draw_player macro draw_player_color, draw_player_x, draw_player_y
     pop     ax
 endm
 
-
-;--------------------------------------------------------------------
-erase_player_right macro
-;   
-;   When player moves left the player is drawn again but
-;   one pixel to the right
-;   This leaves his last state still on the screen
-;   this macro and the ones bellow remove what is left
-;   from previous player state by drawing a rect 1 pixel
-;   wide/high in color of the ground 
-;--------------------------------------------------------------------
-    push ax
-
-    mov     ax, 0Ch                 ; ground color
-    push    ax
-
-    mov     ax, player_draw_x       ; pdx
-    mov     cx, player_w            ; pw
-    shr     cx, 1                   ; pw/2
-    sub     ax, cx                  ; x1 = pdx + pw/2
-    push    ax                      ; draw rect proc parameter
-
-    mov     ax, player_draw_y       ; pdy
-    mov     bx, player_h            ; ph
-    sub     ax, bx                  ; pdy - ph
-    push    ax
-
-    mov     ax, player_draw_x
-    add     ax, cx                  ; pdx + pw/2
-    inc     ax                      ; pdx + pw/2 + 1
-    push    ax
-
-    mov     ax, player_draw_y       ; pdy
-    inc     ax                      ; pdy + 1
-    push    ax
-    call draw_rect
-
-    pop ax
-endm
-
-;--------------------------------------------------------------------
-erase_player_left macro
-;   
-;   When player moves left the player is drawn again but
-;   one pixel to the right
-;   This leaves his last state still on the screen
-;   this macro and the ones bellow remove what is left
-;   from previous player state by drawing a rect 1 pixel
-;   wide/high in color of the ground 
-;--------------------------------------------------------------------
-    push ax
-
-    mov     cx, player_w            ; pw
-    shr     cx, 1                   ; pw/2
-
-    mov     ax, 0F0h
-    sub     ax, cx
-    cmp     player_draw_x, ax
-    jle     ground_color
-    mov     ax, 00h
-    jmp     color_checked
-
-    ground_color:
-    mov     ax, 0Ch                 ; ground color
-
-    color_checked:
-    push    ax
-
-    mov     ax, player_draw_x       ; pdx
-    sub     ax, cx                  ; x1 = pdx + pw/2
-    push    ax                      ; draw rect proc parameter
-
-    mov     ax, player_draw_y       ; pdy
-    mov     bx, player_h            ; ph
-    sub     ax, bx                  ; pdy - ph
-    push    ax
-
-    mov     ax, player_draw_x
-    add     ax, cx                  ; pdx + pw/2
-    inc     ax                      ; pdx + pw/2 + 1
-    push    ax
-
-    mov     ax, player_draw_y       ; pdy
-    inc     ax                      ; pdy + 1
-    push    ax
-    call draw_rect
-
-    pop ax
-endm
-
-
 handle_input macro
     local   dont_exit
     
     ; delete player
-    ;draw_player     0Ch player_draw_x player_draw_y
+    draw_player     0Ch player_draw_x player_draw_y
 
     mov     ax, player_velocity
 
@@ -374,7 +289,7 @@ handle_input macro
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
 
-    cmp     player_pos_y, 014h
+    cmp     player_pos_y, 015h
     jle     W_checked               ; level border
 
     sub     player_pos_y, ax        ; decrement positions by velocity
@@ -384,10 +299,8 @@ handle_input macro
     cmp     [key_buffer + 01Eh], 1  ; check A
     jne     A_checked
 
-    cmp     player_pos_x, 050h      ; level border
+    cmp     player_pos_x, 051h      ; level border
     jle     A_checked
-
-    erase_player_right
 
     sub     player_pos_x, ax
     sub     player_draw_x, ax
@@ -396,7 +309,7 @@ handle_input macro
     cmp     [key_buffer + 01Fh], 1  ; check S
     jne     S_checked
 
-    cmp     player_pos_y, 0B4h
+    cmp     player_pos_y, 0B3h
     jge     S_checked
 
     add     player_pos_y, ax
@@ -406,7 +319,7 @@ handle_input macro
     cmp     [key_buffer + 020h], 1  ; check D
     jne     D_checked
 
-    cmp     player_pos_x, 0F0h
+    cmp     player_pos_x, 0EFh
     jge     D_checked
 
     add     player_pos_x, ax
@@ -418,7 +331,7 @@ endm
 
 start:
     mov     ax, @data
-	mov     ds, ax      ; init data segment
+    mov     ds, ax      ; init data segment
 
     call    change_isr
 

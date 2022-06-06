@@ -9,10 +9,12 @@ void create_line_links(FILE*);
 
 /*
  *  Read the log and return the number of severe errors
+ *  Used in makefile to not execute the program if there are
+ *  errors
  *
  *  After that: replace FILE.ASM(line_number) with FILE.ASM:line_number
- *  if make is run from vscode terminal, that will be a link
- *  to a error in a file
+ *  This makes masm errors in terminal clickable if ran from vscode terminal
+ *  When clicked, vscode will jump to line with error
  */
 int main()
 {
@@ -28,11 +30,12 @@ int main()
     int errors = -1;
     while (fgets(buf, 256, fr)) {
         if (strstr(buf, "Severe  Errors")) {
-            sscanf(buf, "%i", &errors);
+            sscanf(buf, "%i", &errors); // get the number of errors from line
             break;
         }
     }
 
+    // didnt find a line with errors
     if (errors == -1) {
         printf("Unable to check for errors from MASMLOG.TXT\n");
         fclose(fr);
@@ -41,19 +44,16 @@ int main()
 
     rewind(fr);
 
+    // replace .ASM(69 with .ASM:69 - makes it a link: file:line_number
     char c;
     while ((c = fgetc(fr)) != EOF) {
         if (c == '(') {
-            fseek(fr, -1, SEEK_CUR);
-            fputc(':', fr);
-            fscanf(fr, "%[^\n]s", buf);
+            fseek(fr, -1, SEEK_CUR);     // '(' found, go back to it
+            fputc(':', fr);              // replace
+            fscanf(fr, "%[^\n]s", buf);  // go to next line
         }
     }
 
     fclose(fr);
     return errors;
-}
-
-void create_line_links(FILE* fr)
-{
 }

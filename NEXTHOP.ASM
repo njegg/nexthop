@@ -306,6 +306,132 @@ draw_player macro draw_player_color, draw_player_x, draw_player_y
     pop     ax
 endm
 
+; 4 CORNERS AROUND THE PLAYER to CX, DX
+
+bottom_corner_y macro
+    mov     ax, player_draw_y
+    inc     ax
+endm
+
+top_corner_y macro
+    mov     ax, player_draw_y
+    sub     ax, player_h
+    dec     ax
+endm
+
+left_corner_x macro
+    mov     ax, player_draw_x
+    sub     ax, player_w_2
+    dec     ax
+endm
+
+right_corner_x macro
+    mov     ax, player_draw_x
+    add     ax, player_w_2
+    inc     ax
+endm
+
+resotre_background macro
+    mov     bh, 2       ; read from page 2
+    mov     ah, 0Dh
+    int     10h   
+
+    mov     bh, 0       ; write to page 0
+    mov     ah, 0Ch
+    int     10h
+endm
+
+erase_player_right macro
+    local   erase
+    push    ax
+
+    ; starting corner coordinates
+    top_corner_y
+    mov     dx, ax
+    right_corner_x
+    mov     cx, ax
+
+    ; end pixel y
+    bottom_corner_y
+    mov     si, ax
+
+    erase:       
+        resotre_background       
+        inc     dx
+        cmp     dx, si 
+        jl      erase
+
+    pop     ax
+endm
+
+erase_player_left macro
+    local   erase
+    push    ax
+
+    ; starting corner coordinates
+    top_corner_y
+    mov     dx, ax
+    left_corner_x
+    mov     cx, ax
+
+    ; end pixel y
+    bottom_corner_y
+    mov     si, ax
+
+    erase:       
+        resotre_background       
+        inc     dx
+        cmp     dx, si 
+        jl      erase
+
+    pop     ax
+endm
+
+erase_player_up macro
+    local   erase
+    push    ax
+
+    ; starting corner coordinates
+    top_corner_y
+    mov     dx, ax
+    left_corner_x
+    mov     cx, ax
+
+    ; end pixel y
+    right_corner_x
+    mov     si, ax
+
+    erase:       
+        resotre_background       
+        inc     cx
+        cmp     cx, si 
+        jl      erase
+
+    pop     ax
+endm
+
+erase_player_down macro
+    local   erase
+    push    ax
+
+    ; starting corner coordinates
+    bottom_corner_y
+    mov     dx, ax
+    left_corner_x
+    mov     cx, ax
+
+    ; end pixel y
+    right_corner_x
+    mov     si, ax
+
+    erase:       
+        resotre_background       
+        inc     cx
+        cmp     cx, si 
+        jl      erase
+
+    pop     ax
+endm
 handle_input macro
     local   dont_exit
     
@@ -367,13 +493,16 @@ handle_input macro
 
     call change_isr
     P_checked:
-    draw_player     0Ch player_draw_x player_draw_y
+
+    ; erase and draw player at new pos
 
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
 
     cmp     player_pos_y, 015h
     jle     W_checked               ; level border
+
+    erase_player_down
 
     sub     player_pos_y, ax        ; decrement positions by velocity
     sub     player_draw_y, ax
@@ -385,6 +514,8 @@ handle_input macro
     cmp     player_pos_x, 051h      ; level border
     jle     A_checked
 
+    erase_player_right
+
     sub     player_pos_x, ax
     sub     player_draw_x, ax
     A_checked:
@@ -395,6 +526,8 @@ handle_input macro
     cmp     player_pos_y, 0B3h
     jge     S_checked
 
+    erase_player_up
+
     add     player_pos_y, ax
     add     player_draw_y, ax
     S_checked:
@@ -404,6 +537,8 @@ handle_input macro
 
     cmp     player_pos_x, 0EFh
     jge     D_checked
+
+    erase_player_left
 
     add     player_pos_x, ax
     add     player_draw_x, ax

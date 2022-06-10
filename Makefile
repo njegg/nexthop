@@ -1,5 +1,5 @@
 run:
-	@dosbox \
+	@'/mnt/c/Program Files (x86)/DOSBox-0.74-3/DOSBox.exe' \
 		-conf UTIL/DOSBOX.CONF\
 		-c 'MOUNT C "."' \
 	 	-c "C:" \
@@ -12,7 +12,7 @@ run:
 		-c "EXIT" > /dev/null
 
 	@./UTIL/MASM_ERRORS && \
-		dosbox \
+		'/mnt/c/Program Files (x86)/DOSBox-0.74-3/DOSBox.exe' \
 			-conf UTIL/DOSBOX.CONF\
 			-c 'MOUNT C "."' \
 			-c "C:" \

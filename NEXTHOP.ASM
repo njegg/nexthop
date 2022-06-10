@@ -7,6 +7,8 @@
 
     loading db "LOADING...$"
 
+    off dw 0AAh
+
     key_buffer db 128 dup(0)
     isr1_address0 dw 0
     isr1_address1 dw 0
@@ -24,6 +26,8 @@
 
     player_w dw 05h
     player_h dw 0Ah
+    player_w_2 dw ?
+    player_h_2 dw ?
 
     player_velocity dw 1
 
@@ -148,6 +152,7 @@ endm
 draw_rect proc
 ;  
 ;   usage:
+;       push vide_page  [+12]
 ;       push color      [+10]
 ;       push x1         [+8]
 ;       push y1         [+6]
@@ -182,13 +187,29 @@ draw_rect proc
     mov     ax, [bp+di +6]
     mov     dx, [bp+di +10]
     mov     rec_color, dl
+    mov     si, [bp+di +12]             ; video page
     draw_y:
         push    cx
         mov     cx, [bp+di +2]          ; loop through width
         mov     bx, [bp+di +8]          ; x1
 
         draw_x:
-            draw_pixel bx ax rec_color 0
+            push    cx
+            push    bx
+            push    ax
+
+            mov     cx, bx
+            mov     dx, ax
+            mov     al, rec_color
+            mov     bx, si
+            mov     bh, bl
+            mov     ah, 0Ch
+            int 10h
+            
+            pop     ax
+            pop     bx
+            pop     cx
+
             inc     bx
             loop    draw_x
         
@@ -203,15 +224,13 @@ draw_rect proc
     pop     cx
     pop     bx
     pop     ax
-    ret     0Ah
+    ret     0Ch
 draw_rect endp
 
-;--------------------------------------------------------------------
-draw_level proc
-; 
-;   draws a 160x160 square
-;   starts at (80, 40)   
-;--------------------------------------------------------------------
+draw_level_on_page macro, level_page
+    mov     ax, level_page
+    push    ax 
+
     mov     al, ground_color
     xor     ah, ah
     push    ax
@@ -225,7 +244,18 @@ draw_level proc
     mov     ax, 0B4h
     push    ax
     call    draw_rect
+endm
 
+;--------------------------------------------------------------------
+draw_level proc
+; 
+;   draws a 160x160 square
+;   starts at (80, 40)   
+;
+;   draws on page 0 and page 2
+;--------------------------------------------------------------------
+    draw_level_on_page  0
+    draw_level_on_page  2
     ret
 draw_level endp
 
@@ -244,6 +274,9 @@ draw_player macro draw_player_color, draw_player_x, draw_player_y
     push    ax
     push    bx
     push    cx
+
+    xor     ax, ax
+    push    ax
 
     mov     ax, draw_player_color   ; color parameter for draw rect proc
     push    ax
@@ -276,15 +309,65 @@ endm
 handle_input macro
     local   dont_exit
     
-    ; delete player
-    draw_player     0Ch player_draw_x player_draw_y
-
     mov     ax, player_velocity
 
     cmp     [key_buffer + 01h], 1
     jne     ESC_checked
     call    exit
     ESC_checked:
+
+    cmp     [key_buffer + 031h], 1
+    jne     N_checked
+
+    mov     [key_buffer + 031h], 0
+    call resotre_isr
+
+    mov     ax, 00502h
+    int     10h
+    
+    mov ah, 8
+    int 21h
+
+    mov     ax, 00500h
+    int     10h
+
+    call change_isr
+
+    N_checked:
+
+    cmp     [key_buffer + 019h], 1
+    jne     P_checked
+
+    push    es
+    mov     bx, 0A000h
+    mov     es, bx
+    mov bx, 0
+    mov ax, 0AEFEh
+
+    mov     es:[bx], ax
+
+    mov bx, 0C000h
+    mov es, bx
+    mov bx, 0
+    mov ax, 0020h
+    mov es:[bx], ax
+
+    pop     es
+    mov     [key_buffer + 019h], 0
+    call resotre_isr
+
+    mov     ax, 00501h
+    int     10h
+    
+    mov ah, 8
+    int 21h
+
+    mov     ax, 00500h
+    int     10h
+
+    call change_isr
+    P_checked:
+    draw_player     0Ch player_draw_x player_draw_y
 
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
@@ -334,6 +417,14 @@ start:
     mov     ds, ax      ; init data segment
 
     call    change_isr
+
+    ; calculating playwer width and height over 2
+    mov     ax, player_w
+    shr     ax, 1
+    mov     player_w_2, ax
+    mov     ax, player_h
+    shr     ax, 1
+    mov     player_h_2, ax
 
     mov     ax, 0Dh     ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
     int     010h

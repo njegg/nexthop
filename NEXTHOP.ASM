@@ -6,6 +6,7 @@
     SCREEN_H dw 0C8h
 
     loading db "LOADING...$"
+    text    db "nexthop$"
 
     off dw 0AAh
 
@@ -25,9 +26,9 @@
     player_move_y dw 0
 
     player_w dw 05h
-    player_h dw 0Ah
-    player_w_2 dw ?
-    player_h_2 dw ?
+    player_h dw 0Bh
+    player_w_2 dw 02h
+    player_h_2 dw 05h
 
     player_velocity dw 1
 
@@ -150,6 +151,8 @@ endm
 
 ;--------------------------------------------------------------------
 draw_rect proc
+;
+;   TODO: dont use loop, use cx for x and dx for y
 ;  
 ;   usage:
 ;       push vide_page  [+12]
@@ -188,9 +191,12 @@ draw_rect proc
     mov     dx, [bp+di +10]
     mov     rec_color, dl
     mov     si, [bp+di +12]             ; video page
+
+    inc     cx                          ; doesnt go through whole height/width, whole proc loop needs a change
     draw_y:
         push    cx
         mov     cx, [bp+di +2]          ; loop through width
+        inc cx
         mov     bx, [bp+di +8]          ; x1
 
         draw_x:
@@ -260,7 +266,7 @@ draw_level proc
 draw_level endp
 
 ;--------------------------------------------------------------------
-draw_player macro draw_player_color, draw_player_x, draw_player_y
+draw_player macro draw_player_color
 ;
 ;   drawing a rect in a way that a player actual position
 ;   is at the middle of the base of a rectanle, so the
@@ -272,8 +278,6 @@ draw_player macro draw_player_color, draw_player_x, draw_player_y
 ;       y2 = pdy
 ;--------------------------------------------------------------------
     push    ax
-    push    bx
-    push    cx
 
     xor     ax, ax
     push    ax
@@ -281,54 +285,38 @@ draw_player macro draw_player_color, draw_player_x, draw_player_y
     mov     ax, draw_player_color   ; color parameter for draw rect proc
     push    ax
 
-    mov     ax, draw_player_x       ; pdx
-    mov     cx, player_w            ; pw
-    shr     cx, 1                   ; pw/2
-    sub     ax, cx                  ; x1 = pdx - pw/2
-    push    ax                      ; draw rect proc parameter
-
-    mov     ax, draw_player_y       ; pdy
-    mov     bx, player_h            ; ph
-    sub     ax, bx                  ; pdy - ph
+    left_corner_x
     push    ax
-
-    mov     ax, player_draw_x
-    add     ax, cx                  ; pdx + pw/2
+    top_corner_y
     push    ax
-
-    mov     ax, player_draw_y
+    right_corner_x
+    push    ax
+    bottom_corner_y
     push    ax
 
     call    draw_rect
 
-    pop     cx
-    pop     bx
     pop     ax
 endm
 
-; 4 CORNERS AROUND THE PLAYER to CX, DX
-
+; player corners, used for drawing and erasing player rect
 bottom_corner_y macro
     mov     ax, player_draw_y
-    inc     ax
 endm
 
 top_corner_y macro
     mov     ax, player_draw_y
     sub     ax, player_h
-    dec     ax
 endm
 
 left_corner_x macro
     mov     ax, player_draw_x
     sub     ax, player_w_2
-    dec     ax
 endm
 
 right_corner_x macro
     mov     ax, player_draw_x
     add     ax, player_w_2
-    inc     ax
 endm
 
 resotre_background macro
@@ -341,6 +329,7 @@ resotre_background macro
     int     10h
 endm
 
+; TODO: maybe try to make one macro that does all 4
 erase_player_right macro
     local   erase
     push    ax
@@ -359,7 +348,7 @@ erase_player_right macro
         resotre_background       
         inc     dx
         cmp     dx, si 
-        jl      erase
+        jle     erase
 
     pop     ax
 endm
@@ -382,7 +371,7 @@ erase_player_left macro
         resotre_background       
         inc     dx
         cmp     dx, si 
-        jl      erase
+        jle     erase
 
     pop     ax
 endm
@@ -405,7 +394,7 @@ erase_player_up macro
         resotre_background       
         inc     cx
         cmp     cx, si 
-        jl      erase
+        jle     erase
 
     pop     ax
 endm
@@ -428,10 +417,11 @@ erase_player_down macro
         resotre_background       
         inc     cx
         cmp     cx, si 
-        jl      erase
+        jle     erase
 
     pop     ax
 endm
+
 handle_input macro
     local   dont_exit
     
@@ -442,6 +432,7 @@ handle_input macro
     call    exit
     ESC_checked:
 
+    ; for testing, N changes to page 2
     cmp     [key_buffer + 031h], 1
     jne     N_checked
 
@@ -458,29 +449,11 @@ handle_input macro
     int     10h
 
     call change_isr
-
     N_checked:
 
+    ; for testing, P changes to loading screen (page 1)
     cmp     [key_buffer + 019h], 1
     jne     P_checked
-
-    push    es
-    mov     bx, 0A000h
-    mov     es, bx
-    mov bx, 0
-    mov ax, 0AEFEh
-
-    mov     es:[bx], ax
-
-    mov bx, 0C000h
-    mov es, bx
-    mov bx, 0
-    mov ax, 0020h
-    mov es:[bx], ax
-
-    pop     es
-    mov     [key_buffer + 019h], 0
-    call resotre_isr
 
     mov     ax, 00501h
     int     10h
@@ -504,8 +477,8 @@ handle_input macro
 
     erase_player_down
 
-    sub     player_pos_y, ax        ; decrement positions by velocity
-    sub     player_draw_y, ax
+    dec     player_pos_y            ; decrement positions
+    dec     player_draw_y
     W_checked:
 
     cmp     [key_buffer + 01Eh], 1  ; check A
@@ -516,8 +489,8 @@ handle_input macro
 
     erase_player_right
 
-    sub     player_pos_x, ax
-    sub     player_draw_x, ax
+    dec     player_pos_x
+    dec     player_draw_x
     A_checked:
 
     cmp     [key_buffer + 01Fh], 1  ; check S
@@ -528,8 +501,8 @@ handle_input macro
 
     erase_player_up
 
-    add     player_pos_y, ax
-    add     player_draw_y, ax
+    inc     player_pos_y
+    inc     player_draw_y
     S_checked:
 
     cmp     [key_buffer + 020h], 1  ; check D
@@ -540,37 +513,29 @@ handle_input macro
 
     erase_player_left
 
-    add     player_pos_x, ax
-    add     player_draw_x, ax
+    inc     player_pos_x
+    inc     player_draw_x
     D_checked:
 
-    draw_player     0Fh player_draw_x player_draw_y
+    draw_player     0Fh     ; draw player in color white at new position
 endm
 
 start:
     mov     ax, @data
-    mov     ds, ax      ; init data segment
+    mov     ds, ax          ; init data segment
 
     call    change_isr
 
-    ; calculating playwer width and height over 2
-    mov     ax, player_w
-    shr     ax, 1
-    mov     player_w_2, ax
-    mov     ax, player_h
-    shr     ax, 1
-    mov     player_h_2, ax
-
-    mov     ax, 0Dh     ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
+    mov     ax, 0Dh         ; graphics mode, 320x200 16 color graphics (EGA,VGA), 0-7 video pages
     int     010h
 
-    mov     ax, 00501h  ; move to page 1 while stuff is drawing on the screen 
+    mov     ax, 00501h      ; move to page 1 while stuff is drawing on the screen 
     int     10h
 
-    mov     ah, 02h     ; set cursor coords
-    mov     bh, 01h     ; page
-    mov     dh, 010h    ; y
-    mov     dl, 0Dh     ; x
+    mov     ah, 02h         ; set cursor coords
+    mov     bh, 01h         ; page
+    mov     dh, 010h        ; y
+    mov     dl, 0Dh         ; x
     int     10h
 
     lea     dx, loading     ; write loading... while waiting for drawing to finish
@@ -579,8 +544,33 @@ start:
 
     call    draw_level
 
+    ; write nexthop to page 2 
+    mov     ax, 00502h
+    int     10h
+
+    mov     bh, 02h
+    mov     dh, 01h
+    mov     dl, 0Ah
+    mov     ah, 02h
+    int     10h
+
+    lea     dx, text
+    mov     ah, 09h
+    int     21h
+
     mov     ax, 00500h          ; finished drawing, move back from loading to page 0
     int     10h
+
+    ; draw nexthop to page 0
+    mov     bh, 00h
+    mov     dh, 01h
+    mov     dl, 0Ah
+    mov     ah, 02h
+    int     10h
+
+    lea     dx, text
+    mov     ah, 09h
+    int     21h
 
     mov     ax, 0304h
     xor     bx, bx

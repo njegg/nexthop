@@ -31,8 +31,10 @@
     player_h_2 dw 05h
 
     player_velocity dw 1
-
     player_color db 0Fh
+
+    player_shadow_w dw 09h
+    player_shadow_h dw 05h
 
     ground_color db 0Ch
     rec_color db ?
@@ -149,6 +151,16 @@ draw_pixel macro pix_x, pix_y, pix_color, video_page
     pop     ax
 endm
 
+resotre_background macro
+    mov     bh, 2       ; read from page 2
+    mov     ah, 0Dh
+    int     10h   
+
+    mov     bh, 0       ; write to page 0
+    mov     ah, 0Ch
+    int     10h
+endm
+
 ;--------------------------------------------------------------------
 draw_rect proc
 ;
@@ -233,7 +245,7 @@ draw_rect proc
     ret     0Ch
 draw_rect endp
 
-draw_level_on_page macro, level_page
+draw_level_on_page macro level_page
     mov     ax, level_page
     push    ax 
 
@@ -299,6 +311,116 @@ draw_player macro draw_player_color
     pop     ax
 endm
 
+;------------------------------------------------------------------------
+draw_shadow_pixel macro sha_x, sha_y
+;   0Dh has 16 colors, first 8 are darker variants of last 8
+;   Shadow pixel will be the darker variant of whatever is in the background
+;   If its already dark, its just gonna be black
+;------------------------------------------------------------------------
+    push    ax
+    push    bx
+    push    cx
+    push    dx
+
+    mov     cx, sha_x
+    mov     dx, sha_y
+    mov     ah, 0Dh
+    mov     bh, 02h
+    int     10h
+
+    cmp     al, 08h             
+    jle     already_dark
+    sub     al, 08h
+    jmp     draw_pix
+    
+    already_dark:
+    mov     al, 00h
+
+    draw_pix:
+    mov     ah, 0Ch
+    mov     bh, 00h
+    int     10h
+
+    pop     dx
+    pop     cx
+    pop     bx
+    pop     ax
+endm
+
+erase_shadow proc
+    mov     ax, player_pos_x
+    sub     ax, player_w_2
+    sub     ax, 02h
+
+    mov     dx, player_pos_y
+    sub     dx, 02h
+
+    mov     cx, player_shadow_h
+    erase_shadow_y:
+        push    cx
+        mov     cx, player_shadow_w
+        erase_shadow_x:
+            push    cx
+            push    ax
+            push    bx
+
+            mov     cx, ax
+            resotre_background
+            
+            pop     bx
+            pop     ax
+            pop     cx
+
+            inc     ax
+            loop    erase_shadow_x
+        
+        pop     cx
+        inc     dx
+
+        mov     ax, player_pos_x
+        sub     ax, player_w_2
+        sub     ax, 02h
+
+        loop    erase_shadow_y
+
+    ret
+erase_shadow endp
+
+draw_shadow proc
+    push bx
+
+    mov     ax, player_pos_x
+    sub     ax, player_w_2
+    sub     ax, 02h
+
+    mov     dx, player_pos_y
+    sub     dx, 02h
+
+    mov     cx, player_shadow_h
+    shadow_y:
+        push    cx
+        mov     cx, player_shadow_w
+        shadow_x:
+
+            draw_shadow_pixel ax dx
+            
+            inc     ax
+            loop    shadow_x
+        
+        pop     cx
+        inc     dx
+
+        mov     ax, player_pos_x
+        sub     ax, player_w_2
+        sub     ax, 02h
+
+        loop    shadow_y
+
+    pop     bx
+    ret
+draw_shadow endp
+
+
 ; player corners, used for drawing and erasing player rect
 bottom_corner_y macro
     mov     ax, player_draw_y
@@ -319,15 +441,6 @@ right_corner_x macro
     add     ax, player_w_2
 endm
 
-resotre_background macro
-    mov     bh, 2       ; read from page 2
-    mov     ah, 0Dh
-    int     10h   
-
-    mov     bh, 0       ; write to page 0
-    mov     ah, 0Ch
-    int     10h
-endm
 
 ; TODO: maybe try to make one macro that does all 4
 erase_player_right macro
@@ -468,6 +581,7 @@ handle_input macro
     P_checked:
 
     ; erase and draw player at new pos
+    xor     bx, bx                  ; if player moves, bx = 1
 
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
@@ -476,6 +590,7 @@ handle_input macro
     jle     W_checked               ; level border
 
     erase_player_down
+    mov     bx, 1
 
     dec     player_pos_y            ; decrement positions
     dec     player_draw_y
@@ -488,6 +603,7 @@ handle_input macro
     jle     A_checked
 
     erase_player_right
+    mov     bx, 1
 
     dec     player_pos_x
     dec     player_draw_x
@@ -500,6 +616,7 @@ handle_input macro
     jge     S_checked
 
     erase_player_up
+    mov     bx, 1
 
     inc     player_pos_y
     inc     player_draw_y
@@ -512,15 +629,15 @@ handle_input macro
     jge     D_checked
 
     erase_player_left
+    mov     bx, 1
 
     inc     player_pos_x
     inc     player_draw_x
     D_checked:
 
-    draw_player     0Eh     ; draw player in color white at new position
 endm
 
-draw_rect_m macro, p, c, x1, y1, x2, y2
+draw_rect_m macro p, c, x1, y1, x2, y2
     mov     ax, p
     push    ax
     mov     ax, c
@@ -592,15 +709,17 @@ start:
     mov     ah, 09h
     int     21h
 
-    mov     ax, 0304h
-    xor     bx, bx
-    int     16h
+    call draw_shadow
+    draw_player         0Eh
 
     game_loop:
         sleep   0211Bh 
 
-        handle_input            ; changes ax, bx, cx
+        call erase_shadow
 
+        handle_input                ; changes ax, bx, cx
+        call draw_shadow
+        draw_player     0Eh         ; draw player in color white at new position
     jmp     game_loop
 
     call    exit

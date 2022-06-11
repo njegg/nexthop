@@ -517,7 +517,23 @@ handle_input macro
     inc     player_draw_x
     D_checked:
 
-    draw_player     0Fh     ; draw player in color white at new position
+    draw_player     0Eh     ; draw player in color white at new position
+endm
+
+draw_rect_m macro, p, c, x1, y1, x2, y2
+    mov     ax, p
+    push    ax
+    mov     ax, c
+    push    ax
+    mov     ax, x1
+    push    ax
+    mov     ax, y1
+    push    ax
+    mov     ax, x2
+    push    ax
+    mov     ax, y2
+    push    ax
+    call draw_rect
 endm
 
 start:
@@ -543,6 +559,10 @@ start:
     int     21h
 
     call    draw_level
+
+    ; for testing
+    draw_rect_m 0 0Dh 0A0h 0Ah 0AAh 014h
+    draw_rect_m 2 0Dh 0A0h 0Ah 0AAh 014h
 
     ; write nexthop to page 2 
     mov     ax, 00502h

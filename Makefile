@@ -1,6 +1,5 @@
 run:
-	gcc UTIL/MASM_ERRORS.c -o UTIL/MASM_ERRORS
-	@'/mnt/c/Program Files (x86)/DOSBox-0.74-3/DOSBox.exe' \
+	@dosbox \
 		-conf UTIL/DOSBOX.CONF\
 		-c 'MOUNT C "."' \
 	 	-c "C:" \
@@ -13,12 +12,12 @@ run:
 		-c "EXIT" > /dev/null
 
 	@./UTIL/MASM_ERRORS && \
-		'/mnt/c/Program Files (x86)/DOSBox-0.74-3/DOSBox.exe' \
-			-conf UTIL/DOSBOX.CONF\
+		dosbox \
+			-conf UTIL/DOSBOX.CONF \
 			-c 'MOUNT C "."' \
 			-c "C:" \
 			-c "NEXTHOP.EXE" \
-			-c "EXIT"\
+			-c "EXIT" \
 			|| echo "There are errors or warnings";cat UTIL/MASMLOG.TXT
 
 	@rm NEXTHOP.OBJ

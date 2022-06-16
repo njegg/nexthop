@@ -33,8 +33,11 @@
     player_velocity dw 1
     player_color db 0Fh
 
+    player_shadow_y dw ?
     player_shadow_w dw 09h
     player_shadow_h dw 05h
+    player_shadow_w_2 dw 04h
+    player_shadow_h_2 dw 02h
 
     ground_color db 0Ch
     rec_color db ?
@@ -297,13 +300,13 @@ draw_player macro draw_player_color
     mov     ax, draw_player_color   ; color parameter for draw rect proc
     push    ax
 
-    left_corner_x
+    left_corner_x player_draw_x player_w_2
     push    ax
-    top_corner_y
+    top_corner_y player_draw_y player_h
     push    ax
-    right_corner_x
+    right_corner_x player_draw_x player_w_2
     push    ax
-    bottom_corner_y
+    bottom_corner_y player_draw_y
     push    ax
 
     call    draw_rect
@@ -402,6 +405,9 @@ draw_shadow proc
         mov     cx, player_shadow_w
         shadow_x:
 
+            mov ax, TODO
+            check if in player !!
+
             draw_shadow_pixel ax dx
             
             inc     ax
@@ -422,39 +428,39 @@ draw_shadow endp
 
 
 ; player corners, used for drawing and erasing player rect
-bottom_corner_y macro
-    mov     ax, player_draw_y
+bottom_corner_y macro bc_y
+    mov     ax, bc_y
 endm
 
-top_corner_y macro
-    mov     ax, player_draw_y
-    sub     ax, player_h
+top_corner_y macro tc_y, tc_h
+    mov     ax, tc_y
+    sub     ax, tc_h
 endm
 
-left_corner_x macro
-    mov     ax, player_draw_x
-    sub     ax, player_w_2
+left_corner_x macro lc_x, lc_w2
+    mov     ax, lc_x
+    sub     ax, lc_w2
 endm
 
-right_corner_x macro
-    mov     ax, player_draw_x
-    add     ax, player_w_2
+right_corner_x macro rc_x, rc_w2
+    mov     ax, rc_x
+    add     ax, rc_w2
 endm
 
 
 ; TODO: maybe try to make one macro that does all 4
-erase_player_right macro
+erase_rect_right macro er_x, er_y, er_h, er_w2
     local   erase
     push    ax
 
     ; starting corner coordinates
-    top_corner_y
+    top_corner_y er_y er_h
     mov     dx, ax
-    right_corner_x
+    right_corner_x er_x er_w2
     mov     cx, ax
 
     ; end pixel y
-    bottom_corner_y
+    bottom_corner_y er_y
     mov     si, ax
 
     erase:       
@@ -466,18 +472,18 @@ erase_player_right macro
     pop     ax
 endm
 
-erase_player_left macro
+erase_rect_left macro el_x, el_y, el_h, el_w2
     local   erase
     push    ax
 
     ; starting corner coordinates
-    top_corner_y
+    top_corner_y el_y el_h
     mov     dx, ax
-    left_corner_x
+    left_corner_x el_x el_w2
     mov     cx, ax
 
     ; end pixel y
-    bottom_corner_y
+    bottom_corner_y el_y
     mov     si, ax
 
     erase:       
@@ -489,18 +495,18 @@ erase_player_left macro
     pop     ax
 endm
 
-erase_player_up macro
+erase_rect_up macro eu_x, eu_y, eu_h, eu_w2
     local   erase
     push    ax
 
     ; starting corner coordinates
-    top_corner_y
+    top_corner_y eu_y eu_h
     mov     dx, ax
-    left_corner_x
+    left_corner_x eu_x eu_w2
     mov     cx, ax
 
     ; end pixel y
-    right_corner_x
+    right_corner_x eu_x eu_w2
     mov     si, ax
 
     erase:       
@@ -512,18 +518,18 @@ erase_player_up macro
     pop     ax
 endm
 
-erase_player_down macro
+erase_rect_down macro ed_x, ed_y, ed_h, ed_w2  
     local   erase
     push    ax
 
     ; starting corner coordinates
-    bottom_corner_y
+    bottom_corner_y ed_y
     mov     dx, ax
-    left_corner_x
+    left_corner_x ed_x ed_w2
     mov     cx, ax
 
     ; end pixel y
-    right_corner_x
+    right_corner_x ed_x ed_w2
     mov     si, ax
 
     erase:       
@@ -586,10 +592,10 @@ handle_input macro
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
 
-    cmp     player_pos_y, 015h
+    cmp     player_pos_y, 016h
     jle     W_checked               ; level border
 
-    erase_player_down
+    erase_rect_down player_draw_x player_draw_y player_h player_w_2
     mov     bx, 1
 
     dec     player_pos_y            ; decrement positions
@@ -599,10 +605,10 @@ handle_input macro
     cmp     [key_buffer + 01Eh], 1  ; check A
     jne     A_checked
 
-    cmp     player_pos_x, 051h      ; level border
+    cmp     player_pos_x, 050h      ; level border
     jle     A_checked
 
-    erase_player_right
+    erase_rect_right player_draw_x player_draw_y player_h player_w_2
     mov     bx, 1
 
     dec     player_pos_x
@@ -612,10 +618,10 @@ handle_input macro
     cmp     [key_buffer + 01Fh], 1  ; check S
     jne     S_checked
 
-    cmp     player_pos_y, 0B3h
+    cmp     player_pos_y, 0B4h
     jge     S_checked
 
-    erase_player_up
+    erase_rect_up player_draw_x player_draw_y player_h player_w_2
     mov     bx, 1
 
     inc     player_pos_y
@@ -625,10 +631,11 @@ handle_input macro
     cmp     [key_buffer + 020h], 1  ; check D
     jne     D_checked
 
-    cmp     player_pos_x, 0EFh
+    cmp     player_pos_x, 0F0h
     jge     D_checked
 
-    erase_player_left
+    erase_rect_left player_draw_x player_draw_y player_h player_w_2
+    erase_rect_left player_pos_x player_shadow_y player_shadow_h player_shadow_w_2
     mov     bx, 1
 
     inc     player_pos_x
@@ -709,17 +716,28 @@ start:
     mov     ah, 09h
     int     21h
 
-    call draw_shadow
-    draw_player         0Eh
+    ; calclulate shadow y position
+
+    call    draw_shadow
+    draw_player 0Eh
 
     game_loop:
+        mov     ax, player_pos_y
+        add     ax, player_shadow_h_2
+        mov     player_shadow_y, ax
         sleep   0211Bh 
 
-        call erase_shadow
 
         handle_input                ; changes ax, bx, cx
+        
+        cmp bx, 1
+        jne player_didnt_move_dont_draw
+
         call draw_shadow
-        draw_player     0Eh         ; draw player in color white at new position
+        draw_player 0Eh         ; draw player in color white at new position
+
+        player_didnt_move_dont_draw:
+
     jmp     game_loop
 
     call    exit

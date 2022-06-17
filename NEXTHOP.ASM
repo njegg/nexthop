@@ -248,9 +248,64 @@ draw_rect proc
     ret     0Ch
 draw_rect endp
 
-draw_level_on_page macro level_page
-    mov     ax, level_page
-    push    ax 
+draw_level_on_page proc
+    push    bp
+
+    mov     bp, sp
+
+    ; drawing water
+    mov     cx, SCREEN_H
+    mov     dx, 0
+    water_y:
+        push    cx
+        mov     cx, SCREEN_W
+
+        water_x:
+            mov     si, ax
+            and     si, 1
+
+            mov     di, dx
+            and     di, 1
+
+            cmp     di, si
+            je      dark_water
+            mov     bx, 0Bh
+            jmp     water_color_chosen
+            dark_water:
+            mov     bx, 03h
+            jmp     water_color_chosen
+            water_color_chosen:
+
+            draw_pixel ax dx bl [bp+2+2]
+            inc ax
+        loop    water_x
+        mov     ax, 0
+        inc     dx
+
+    pop     cx
+    loop    water_y
+
+    ; darker rect aroung main one 
+    mov     bx, [bp+2 +2]   ; page number
+    ; push    bx
+
+    ; mov     al, ground_color
+    ; sub     al, 8
+    ; xor     ah, ah
+    ; push    ax
+
+    ; mov     ax, 04Fh
+    ; push    ax
+    ; mov     ax, 013h
+    ; push    ax
+    ; mov     ax, 0F1h
+    ; push    ax
+    ; mov     ax, 0B5h
+    ; push    ax
+    ; call    draw_rect
+
+    ; drawing big red rect
+    push    bx
 
     mov     al, ground_color
     xor     ah, ah
@@ -265,8 +320,11 @@ draw_level_on_page macro level_page
     mov     ax, 0B4h
     push    ax
     call    draw_rect
-endm
 
+
+    pop     bp
+    ret     2
+draw_level_on_page endp
 ;--------------------------------------------------------------------
 draw_level proc
 ; 
@@ -275,8 +333,14 @@ draw_level proc
 ;
 ;   draws on page 0 and page 2
 ;--------------------------------------------------------------------
-    draw_level_on_page  0
-    draw_level_on_page  2
+    mov     ax, 0
+    push    ax
+    call draw_level_on_page
+
+    mov     ax, 2
+    push    ax
+    call draw_level_on_page
+
     ret
 draw_level endp
 
@@ -337,6 +401,13 @@ draw_shadow_pixel macro sha_x, sha_y
     jmp     draw_pix
     
     already_dark:
+    cmp     al, 03h
+    jne     not_dark_cyan
+    ; dark cyan will be dark blue in shadow instead of black
+    mov     al, 01h
+    jmp     draw_pix
+
+    not_dark_cyan:
     mov     al, 00h
 
     draw_pix:
@@ -392,6 +463,12 @@ erase_shadow endp
 draw_shadow proc
     push bx
 
+    mov     si, player_draw_x
+    sub     si, player_w_2
+
+    mov     di, player_draw_x
+    add     di, player_w_2
+
     mov     ax, player_pos_x
     sub     ax, player_w_2
     sub     ax, 02h
@@ -405,11 +482,20 @@ draw_shadow proc
         mov     cx, player_shadow_w
         shadow_x:
 
-            mov ax, TODO
-            check if in player !!
+            cmp     dx, player_draw_y
+            jg      shadow_is_not_behind
 
+            cmp     ax, si 
+            jl      shadow_is_not_behind
+            cmp     ax, di  
+            jg      shadow_is_not_behind
+
+            jmp     shadow_is_behind
+
+            shadow_is_not_behind:
             draw_shadow_pixel ax dx
-            
+
+            shadow_is_behind:
             inc     ax
             loop    shadow_x
         
@@ -592,10 +678,11 @@ handle_input macro
     cmp     [key_buffer + 011h], 1  ; check W
     jne     W_checked
 
-    cmp     player_pos_y, 016h
+    cmp     player_pos_y, 014h
     jle     W_checked               ; level border
 
     erase_rect_down player_draw_x player_draw_y player_h player_w_2
+    erase_rect_down player_pos_x player_shadow_y player_shadow_h player_shadow_w_2
     mov     bx, 1
 
     dec     player_pos_y            ; decrement positions
@@ -609,6 +696,7 @@ handle_input macro
     jle     A_checked
 
     erase_rect_right player_draw_x player_draw_y player_h player_w_2
+    erase_rect_right player_pos_x player_shadow_y player_shadow_h player_shadow_w_2
     mov     bx, 1
 
     dec     player_pos_x
@@ -622,6 +710,7 @@ handle_input macro
     jge     S_checked
 
     erase_rect_up player_draw_x player_draw_y player_h player_w_2
+    erase_rect_up player_pos_x player_shadow_y player_shadow_h player_shadow_w_2
     mov     bx, 1
 
     inc     player_pos_y
